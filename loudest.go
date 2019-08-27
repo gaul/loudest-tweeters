@@ -19,6 +19,7 @@ type userStatistics struct {
 	retweets   int
 	muted      bool
 	noRetweets bool
+	oldest     time.Time
 }
 
 type cachedUserStatistics struct {
@@ -72,15 +73,22 @@ func getUncachedTimeline(api *anaconda.TwitterApi) (map[int64]userStatistics, er
 			stat, ok := stats[tweet.User.Id]
 			if !ok {
 				stat = userStatistics{
-					user: tweet.User,
+					user:   tweet.User,
+					oldest: time.Now(),
 				}
 			}
 			stat.tweets += 1
 			if tweet.RetweetedStatus != nil {
 				stat.retweets += 1
 			}
-			stats[tweet.User.Id] = stat
+			createdAt, err := tweet.CreatedAtTime()
+			if err != nil {
+				return nil, err
+			} else if !createdAt.IsZero() && stat.oldest.After(createdAt) {
+				stat.oldest = createdAt
+			}
 			maxID = tweet.Id - 1
+			stats[tweet.User.Id] = stat
 		}
 	}
 	return stats, nil
@@ -283,6 +291,7 @@ Prune by disabling retweets or muting tweets.</p>
 <table id="table_id" class="display">
 <thead><tr><th>Screen name</th><th>Tweets</th><th>Retweets</th><th>Status</th></tr></thead>
 `)
+	oldest := time.Now()
 	for _, stat := range stats {
 		extra := ""
 		if stat.muted {
@@ -297,12 +306,16 @@ Prune by disabling retweets or muting tweets.</p>
 	<td>%s</td>
 </tr>
 `, stat.user.ScreenName, stat.user.ScreenName, stat.tweets, stat.retweets, extra)
+		if !stat.oldest.IsZero() && oldest.After(stat.oldest) {
+			oldest = stat.oldest
+		}
 	}
-	fmt.Fprintln(w, `</table>
+	fmt.Fprintf(w, `</table>
+<p>Oldest Tweet: %s</p>
 <p>Results may lag 15 minutes due to Twitter API rate limits.</p>
 </body>
 </html>
-`)
+`, oldest)
 }
 
 func main() {
