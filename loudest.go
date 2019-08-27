@@ -10,7 +10,6 @@ import (
 	"time"
 
 	"github.com/ChimeraCoder/anaconda"
-	"github.com/garyburd/go-oauth/oauth"
 )
 
 type userStatistics struct {
@@ -28,6 +27,8 @@ type cachedUserStatistics struct {
 }
 
 const RATE_LIMIT_TIMEOUT = 15 * 60
+
+var api *anaconda.TwitterApi
 
 var tokensToSecrets = make(map[string]string)
 
@@ -179,20 +180,8 @@ func getNoRetweets(api *anaconda.TwitterApi) ([]int64, error) {
 	return noRetweets, nil
 }
 
-func renewAuthorizationURL(w http.ResponseWriter, r *http.Request) {
-	url, creds, err := anaconda.AuthorizationURL("http://127.0.0.1:8080") // TODO: correct value?
-	if err != nil {
-		log.Printf("Could not get authorization URL: %+v\n", err)
-		return
-	}
-	tokensToSecrets[creds.Token] = creds.Secret
-	http.Redirect(w, r, url, http.StatusFound)
-	return
-}
-
 func handler(w http.ResponseWriter, r *http.Request) {
 	log.Printf("request: %+v\n", r)
-	values := r.URL.Query()
 
 	if r.Method == "GET" && r.URL.Path == "/prune.png" {
 		w.Header().Add("Content-Type", "image/png")
@@ -203,29 +192,6 @@ func handler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	token := values["oauth_token"]
-	verifier := values["oauth_verifier"]
-	if len(token) == 0 || len(verifier) == 0 {
-		renewAuthorizationURL(w, r)
-		return
-	}
-
-	var secret string
-	var ok bool
-	if secret, ok = tokensToSecrets[token[0]]; !ok {
-		renewAuthorizationURL(w, r)
-		return
-	}
-
-	creds, values, err := anaconda.GetCredentials(&oauth.Credentials{Token: token[0], Secret: secret}, verifier[0])
-	if err != nil {
-		log.Printf("Could not get credentials: %+v\n", err)
-		renewAuthorizationURL(w, r)
-		return
-	}
-
-	api := anaconda.NewTwitterApi(creds.Token, creds.Secret)
-	defer api.Close()
 	api.ReturnRateLimitError(true)
 
 	stats, err := getCachedTimeline(api)
@@ -321,12 +287,13 @@ Prune by disabling retweets or muting tweets.</p>
 func main() {
 	consumerKey := os.Getenv("TWITTER_KEY")
 	consumerSecret := os.Getenv("TWITTER_SECRET")
-	if consumerKey == "" || consumerSecret == "" {
-		log.Println("Must set both TWITTER_KEY and TWITTER_SECRET environment variables")
+	accessToken := os.Getenv("TWITTER_ACCESS_TOKEN")
+	accessTokenSecret := os.Getenv("TWITTER_ACCESS_TOKEN_SECRET")
+	if consumerKey == "" || consumerSecret == "" || accessToken == "" || accessTokenSecret == "" {
+		log.Println("Must set both TWITTER_KEY, TWITTER_SECRET, TWITTER_ACCESS_TOKEN, and TWITTER_ACCESS_TOKEN_SECRET environment variables")
 		os.Exit(1)
 	}
-	anaconda.SetConsumerKey(consumerKey)
-	anaconda.SetConsumerSecret(consumerSecret)
+	api = anaconda.NewTwitterApiWithCredentials(accessToken, accessTokenSecret, consumerKey, consumerSecret)
 	http.HandleFunc("/", handler)
 	log.Println("Listening on port 8080")
 	http.ListenAndServe(":8080", nil)
