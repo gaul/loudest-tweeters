@@ -12,7 +12,7 @@ First get the source via `go get github.com/gaul/loudest-tweeters`.  Then
 compile via `go build`.  Finally run via:
 
 ```
-TWITTER_KEY=xxx TWITTER_SECRET=xxxxxx ./loudest-tweeters
+ TWITTER_KEY=xxx TWITTER_SECRET=xxx TWITTER_ACCESS_TOKEN=xxx TWITTER_ACCESS_TOKEN_SECRET=xxx ./loudest-tweeters
 ```
 
 ## TODO

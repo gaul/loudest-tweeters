@@ -290,7 +290,7 @@ func main() {
 	accessToken := os.Getenv("TWITTER_ACCESS_TOKEN")
 	accessTokenSecret := os.Getenv("TWITTER_ACCESS_TOKEN_SECRET")
 	if consumerKey == "" || consumerSecret == "" || accessToken == "" || accessTokenSecret == "" {
-		log.Println("Must set both TWITTER_KEY, TWITTER_SECRET, TWITTER_ACCESS_TOKEN, and TWITTER_ACCESS_TOKEN_SECRET environment variables")
+		log.Println("Must set TWITTER_KEY, TWITTER_SECRET, TWITTER_ACCESS_TOKEN, and TWITTER_ACCESS_TOKEN_SECRET environment variables")
 		os.Exit(1)
 	}
 	api = anaconda.NewTwitterApiWithCredentials(accessToken, accessTokenSecret, consumerKey, consumerSecret)
