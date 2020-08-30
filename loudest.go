@@ -294,7 +294,12 @@ func main() {
 		os.Exit(1)
 	}
 	api = anaconda.NewTwitterApiWithCredentials(accessToken, accessTokenSecret, consumerKey, consumerSecret)
+
+	addr := "localhost:8080"
+	if len(os.Args) > 1 {
+		addr = os.Args[1]
+	}
 	http.HandleFunc("/", handler)
-	log.Println("Listening on port 8080")
-	http.ListenAndServe(":8080", nil)
+	log.Printf("Listening on %s", addr)
+	log.Fatal(http.ListenAndServe(addr, nil))
 }
